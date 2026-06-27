@@ -40,6 +40,17 @@
     .fade-up.visible{opacity:1;transform:translateY(0);}
     .d1{transition-delay:.1s}.d2{transition-delay:.2s}
     @media(prefers-reduced-motion:reduce){.fade-up,.masonry-item img{transition:none;opacity:1;transform:none;}#lightbox.active{animation:none;}}
+
+    /* Spider-web gallery */
+    .web-line{stroke:rgba(26,58,15,0.22);stroke-width:1.5px;transition:stroke .25s ease,stroke-width .25s ease;}
+    .web-line.active{stroke:#4aaf35;stroke-width:2.5px;}
+    .web-center, .web-node{position:absolute;transform:translate(-50%,-50%);z-index:2;transition:left .55s cubic-bezier(.4,0,.2,1),top .55s cubic-bezier(.4,0,.2,1),width .55s cubic-bezier(.4,0,.2,1),height .55s cubic-bezier(.4,0,.2,1);}
+    .web-center{z-index:3;}
+    .web-thumb{width:100%;height:100%;border-radius:10px;overflow:hidden;border:3px solid #fff;box-shadow:0 6px 18px rgba(0,0,0,.18);cursor:pointer;transition:transform .25s ease,box-shadow .25s ease;background:#fff;}
+    .web-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+    .web-node:hover .web-thumb{transform:scale(1.14);box-shadow:0 10px 26px rgba(0,0,0,.3);}
+    .web-center .web-thumb{cursor:default;border-width:4px;}
+    @media(prefers-reduced-motion:reduce){.web-center,.web-node{transition:none;}.web-thumb{transition:none;}}
   </style>
 </head>
 <body class="font-sans bg-white text-gray-800 antialiased overflow-x-hidden">
@@ -91,6 +102,25 @@
     <p class="text-white/60 text-lg max-w-xl leading-relaxed fade-up d2">Land clearing, hydro-ax mulching, pond excavation and site prep across Montgomery County, The Woodlands and Conroe, TX.</p>
   </div>
 </div>
+
+<!-- ===== SPIDER-WEB GALLERY ===== -->
+<section class="py-12 lg:py-20 bg-white border-b border-gray-100">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6">
+    <div class="text-center max-w-2xl mx-auto mb-12 fade-up">
+      <p class="text-green-cta font-semibold text-[11px] tracking-[0.18em] uppercase mb-3">Featured Work</p>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-forest leading-tight mb-3">Explore Our Projects</h2>
+      <p class="text-gray-500 text-lg">Click any photo to bring it to the center.</p>
+    </div>
+
+    <!-- Desktop / tablet: circular spider-web layout -->
+    <div id="webWrap" class="hidden md:block relative mx-auto" style="width:100%;max-width:920px;aspect-ratio:1/1;">
+      <svg id="webLines" class="absolute inset-0 w-full h-full" style="z-index:1;overflow:visible;"></svg>
+    </div>
+
+    <!-- Mobile: clean square grid fallback -->
+    <div id="webGridMobile" class="md:hidden grid grid-cols-3 gap-2"></div>
+  </div>
+</section>
 
 <!-- ===== GALLERY ===== -->
 <section class="py-12 lg:py-16 bg-gray-50">
@@ -299,6 +329,123 @@
   document.addEventListener('keydown',function(e){if(!lb.classList.contains('active'))return;if(e.key==='Escape')closeLb();if(e.key==='ArrowLeft')showLb(current-1);if(e.key==='ArrowRight')showLb(current+1);});
   var obs=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target);}});},{threshold:0.08});
   document.querySelectorAll('.fade-up').forEach(function(el){obs.observe(el);});
+}());
+</script>
+
+<script>
+(function(){
+  'use strict';
+  var wrap = document.getElementById('webWrap');
+  var svg = document.getElementById('webLines');
+  var gridMobile = document.getElementById('webGridMobile');
+  if(!wrap || !svg || !gridMobile) return;
+
+  var centerImg = 'images/service-21.jpg';
+  var ringImgs = ['images/2.jpg','images/3.jpg','images/4.jpg','images/5.jpg','images/6.jpg','images/7.jpg','images/8.jpg','images/9.jpg','images/10.jpg','images/11.jpg','images/12.jpg','images/service-10.jpg','images/service-11.jpg','images/service-12.jpg','images/service-13.jpg','images/service-14.jpg','images/service-15.jpg','images/service-16.jpg','images/service-17.jpg','images/service-18.jpg','images/service-19.jpg','images/service-20.jpg'];
+  var allImgs = [centerImg].concat(ringImgs);
+  var n = ringImgs.length;
+
+  // slot[i] = photo index (into allImgs) currently occupying slot i. slot 0 = center, 1..n = ring.
+  var slot = allImgs.map(function(_, i){ return i; });
+  var nodeEls = [];
+  var lineEls = [];
+
+  allImgs.forEach(function(src, photoIdx){
+    var el = document.createElement('div');
+    el.className = (photoIdx === 0 ? 'web-center' : 'web-node');
+    el.innerHTML = '<div class="web-thumb"><img src="' + src + '" alt="Project photo" loading="lazy"></div>';
+    wrap.appendChild(el);
+    nodeEls[photoIdx] = el;
+
+    el.addEventListener('click', function(){
+      var curSlot = slot.indexOf(photoIdx);
+      if (curSlot === 0) return;
+      var centerPhotoIdx = slot[0];
+      slot[0] = photoIdx;
+      slot[curSlot] = centerPhotoIdx;
+      applyPositions();
+    });
+    el.addEventListener('mouseenter', function(){
+      var ringIdx = slot.indexOf(photoIdx) - 1;
+      if (ringIdx >= 0 && lineEls[ringIdx]) lineEls[ringIdx].classList.add('active');
+    });
+    el.addEventListener('mouseleave', function(){
+      var ringIdx = slot.indexOf(photoIdx) - 1;
+      if (ringIdx >= 0 && lineEls[ringIdx]) lineEls[ringIdx].classList.remove('active');
+    });
+  });
+
+  for (var i = 0; i < n; i++) {
+    var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('class', 'web-line');
+    svg.appendChild(line);
+    lineEls.push(line);
+  }
+
+  function dims(){
+    return { cx: wrap.clientWidth / 2, cy: wrap.clientHeight / 2, w: wrap.clientWidth };
+  }
+
+  function slotPosition(slotIdx, d){
+    if (slotIdx === 0) {
+      return { x: d.cx, y: d.cy, size: Math.max(140, d.w * 0.25) };
+    }
+    var ringIdx = slotIdx - 1;
+    var angle = (ringIdx / n) * 2 * Math.PI - Math.PI / 2;
+    var radius = d.w * 0.42;
+    return {
+      x: d.cx + radius * Math.cos(angle),
+      y: d.cy + radius * Math.sin(angle),
+      size: Math.max(58, d.w * 0.10)
+    };
+  }
+
+  function applyPositions(){
+    if (wrap.clientWidth === 0) return; // hidden (mobile breakpoint)
+    var d = dims();
+    slot.forEach(function(photoIdx, slotIdx){
+      var pos = slotPosition(slotIdx, d);
+      var el = nodeEls[photoIdx];
+      el.style.left = pos.x + 'px';
+      el.style.top = pos.y + 'px';
+      el.style.width = pos.size + 'px';
+      el.style.height = pos.size + 'px';
+      el.className = (slotIdx === 0 ? 'web-center' : 'web-node');
+    });
+    animateLines();
+  }
+
+  function animateLines(){
+    var start = performance.now();
+    var duration = 580;
+    function frame(){
+      var centerEl = nodeEls[slot[0]];
+      var cx = centerEl.offsetLeft, cy = centerEl.offsetTop;
+      for (var i = 0; i < n; i++) {
+        var ringEl = nodeEls[slot[i + 1]];
+        lineEls[i].setAttribute('x1', cx);
+        lineEls[i].setAttribute('y1', cy);
+        lineEls[i].setAttribute('x2', ringEl.offsetLeft);
+        lineEls[i].setAttribute('y2', ringEl.offsetTop);
+      }
+      if (performance.now() - start < duration) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  allImgs.forEach(function(src){
+    var d = document.createElement('div');
+    d.className = 'rounded-lg overflow-hidden aspect-square';
+    d.innerHTML = '<img src="' + src + '" alt="Project photo" class="w-full h-full object-cover" loading="lazy">';
+    gridMobile.appendChild(d);
+  });
+
+  applyPositions();
+  var resizeTimer;
+  window.addEventListener('resize', function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(applyPositions, 120);
+  });
 }());
 </script>
 </body>
